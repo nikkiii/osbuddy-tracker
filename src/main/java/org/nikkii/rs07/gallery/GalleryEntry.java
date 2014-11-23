@@ -1,15 +1,38 @@
 package org.nikkii.rs07.gallery;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
+
 /**
+ * Represents an OSBuddy Gallery entry.
+ *
  * @author Nikki
  */
 public class GalleryEntry {
-	private long time;
+	/**
+	 * The entry time.
+	 */
+	private final long time;
 
-	private String absolutePath;
+	/**
+	 * The entry's absolute file path.
+	 */
+	private final String absolutePath;
 
-	private String fileName;
+	/**
+	 * The entry's file name.
+	 */
+	private final String fileName;
 
+	/**
+	 * Construct a new GalleryEntry.
+	 *
+	 * @param time The entry time.
+	 * @param absolutePath The entry path.
+	 * @param fileName The entry file name.
+	 */
 	public GalleryEntry(long time, String absolutePath, String fileName) {
 		this.time = time;
 		this.absolutePath = absolutePath;
@@ -26,6 +49,16 @@ public class GalleryEntry {
 
 	public String getAbsolutePath() {
 		return absolutePath;
+	}
+
+	/**
+	 * Attempt to read the screenshot from the absolute path.
+	 *
+	 * @return The screenshot.
+	 * @throws IOException If an error occurs while attempting to load.
+	 */
+	public BufferedImage getScreenshot() throws IOException {
+		return ImageIO.read(new File(absolutePath));
 	}
 
 	@Override
