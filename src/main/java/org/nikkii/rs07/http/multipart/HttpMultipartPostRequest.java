@@ -3,9 +3,11 @@ package org.nikkii.rs07.http.multipart;
 
 import org.nikkii.rs07.http.HttpRequest;
 
-import java.io.*;
-import java.net.HttpURLConnection;
-import java.net.URL;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
 import java.net.URLConnection;
 import java.util.Map;
 import java.util.Random;
