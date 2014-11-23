@@ -1,0 +1,10 @@
+{
+    "updateUrl" : "http://rslog.cf/update",
+    "imageUrl" : "http://rslog.cf/image/upload",
+
+    "deserializerSettings" : {
+        "timeField" : "InsertWittyName_a",
+        "absolutePathField" : "InsertWittyName_b",
+        "fileNameField" : "InsertWittyName_c"
+    }
+}

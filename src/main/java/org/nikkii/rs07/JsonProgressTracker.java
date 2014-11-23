@@ -19,6 +19,8 @@ import org.nikkii.rs07.http.multipart.MultipartFile;
 
 import javax.imageio.ImageIO;
 import java.awt.AWTException;
+import java.awt.Dimension;
+import java.awt.Image;
 import java.awt.MenuItem;
 import java.awt.PopupMenu;
 import java.awt.SystemTray;
@@ -156,7 +158,6 @@ public class JsonProgressTracker {
 			this.settings = new Gson().fromJson(reader, ProgressTrackerSettings.class);
 		}
 
-		System.out.println(settings.getDeserializerSettings());
 		gson = new GsonBuilder().registerTypeAdapter(GalleryEntry.class, new GalleryJsonDeserializer(settings.getDeserializerSettings())).create();
 
 		this.authStore = AuthStore.load(new File(System.getProperty("user.home"), ".rslog"));
@@ -169,7 +170,15 @@ public class JsonProgressTracker {
 	 * @throws IOException If an error occurs reading the icon file.
 	 */
 	private void initializeTrayIcon() throws IOException {
-		TrayIcon icon = new TrayIcon(ImageIO.read(JsonProgressTracker.class.getResourceAsStream("/icon.png")));
+		Image image = ImageIO.read(JsonProgressTracker.class.getResourceAsStream("/icon.png"));
+
+		Dimension size = SystemTray.getSystemTray().getTrayIconSize();
+
+		image = image.getScaledInstance(size.width, size.height, BufferedImage.SCALE_SMOOTH);
+
+		TrayIcon icon = new TrayIcon(image);
+
+		icon.setToolTip("RSLog Tracker");
 
 		PopupMenu menu = new PopupMenu();
 
