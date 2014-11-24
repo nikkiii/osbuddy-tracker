@@ -45,6 +45,7 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -56,7 +57,11 @@ import static java.nio.file.StandardWatchEventKinds.OVERFLOW;
  */
 public class JsonProgressTracker {
 
+	private static final Logger logger = Logger.getLogger(JsonProgressTracker.class.getName());
+
 	public static void main(String[] args) throws IOException {
+		logger.info("Finding OSBuddy directory...");
+
 		File home = new File(System.getProperty("user.home"));
 
 		File osbuddyRoot = new File(home, "OSBuddy");
@@ -78,8 +83,10 @@ public class JsonProgressTracker {
 
 		JsonProgressTracker tracker = new JsonProgressTracker();
 
+		logger.info("Initializing tray icon...");
 		tracker.initializeTrayIcon();
 
+		logger.info("Starting watch service...");
 		tracker.track(watchDir);
 	}
 
@@ -382,7 +389,7 @@ public class JsonProgressTracker {
 		try {
 			screenshot = entry.getScreenshot();
 		} catch (Exception e) {
-			System.out.println("Unable to get screenshot from " + entry.getAbsolutePath());
+			// Nothing to it.
 		}
 
 		// Level up
@@ -406,7 +413,9 @@ public class JsonProgressTracker {
 		if (m.find()) {
 			String difficulty = m.group(1);
 
-			return new TreasureTrailEvent(entry, displayName, screenshot, difficulty);
+			String timestamp = m.group(2);
+
+			return new TreasureTrailEvent(entry, displayName, screenshot, difficulty, timestamp);
 		}
 
 		// Duel victory

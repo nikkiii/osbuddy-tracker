@@ -27,16 +27,28 @@ public class GalleryEntry {
 	private final String fileName;
 
 	/**
+	 * The entry's imgur deletion key.
+	 */
+	private final String deletionKey;
+
+	/**
+	 * The entry's screenshot url.
+	 */
+	private final String url;
+
+	/**
 	 * Construct a new GalleryEntry.
 	 *
 	 * @param time The entry time.
 	 * @param absolutePath The entry path.
 	 * @param fileName The entry file name.
 	 */
-	public GalleryEntry(long time, String absolutePath, String fileName) {
+	public GalleryEntry(long time, String absolutePath, String fileName, String deletionKey, String url) {
 		this.time = time;
 		this.absolutePath = absolutePath;
 		this.fileName = fileName;
+		this.deletionKey = deletionKey;
+		this.url = url;
 	}
 
 	public long getTime() {
@@ -51,6 +63,14 @@ public class GalleryEntry {
 		return absolutePath;
 	}
 
+	public String getDeletionKey() {
+		return deletionKey;
+	}
+
+	public String getUrl() {
+		return url;
+	}
+
 	/**
 	 * Attempt to read the screenshot from the absolute path.
 	 *
@@ -63,6 +83,6 @@ public class GalleryEntry {
 
 	@Override
 	public String toString() {
-		return "GalleryEntry [time=" + time + ", absolutePath=" + absolutePath + ", fileName=" + fileName + "]";
+		return "GalleryEntry [time=" + time + ", absolutePath=" + absolutePath + ", fileName=" + fileName + ", deletionKey=" + deletionKey + ", url=" + url + "]";
 	}
 }

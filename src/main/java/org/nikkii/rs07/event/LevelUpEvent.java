@@ -29,6 +29,6 @@ public class LevelUpEvent extends OSBuddyEvent {
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(type, displayName, entry.getTime(), skill, level);
+		return Objects.hash(type, displayName, skill, level);
 	}
 }

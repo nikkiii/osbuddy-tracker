@@ -5,6 +5,8 @@
     "deserializerSettings" : {
         "timeField" : "InsertWittyName_a",
         "absolutePathField" : "InsertWittyName_b",
-        "fileNameField" : "InsertWittyName_c"
+        "fileNameField" : "InsertWittyName_c",
+        "deletionKeyField" : "InsertWittyName_d",
+        "urlField" : "InsertWittyName_e"
     }
 }
