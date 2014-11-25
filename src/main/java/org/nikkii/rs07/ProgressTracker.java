@@ -74,14 +74,14 @@ public class ProgressTracker {
 	 *
 	 * Example: Hunter Level (99)
 	 */
-	private static final Pattern LEVEL_PATTERN = Pattern.compile("(.*?)\\sLevel\\s\\((\\d+)\\)");
+	private static final Pattern LEVEL_PATTERN = Pattern.compile("^(.*?)\\sLevel\\s\\((\\d+)\\)$");
 
 	/**
 	 * The Treasure Trail pattern.
 	 *
 	 * Example: Treasure Trail - Elite - <date>
 	 */
-	private static final Pattern TREASURE_TRAIL_PATTERN = Pattern.compile("Treasure Trail - (Easy|Medium|Hard|Elite) - (.*?)");
+	private static final Pattern TREASURE_TRAIL_PATTERN = Pattern.compile("^Treasure Trail - (Easy|Medium|Hard|Elite) - (.*?)$");
 
 	/**
 	 * The Duel Victory pattern.
@@ -226,6 +226,8 @@ public class ProgressTracker {
 		}
 
 		parsedEvents.add(evt.hashCode());
+
+		worker.queue(evt);
 	}
 
 	/**
@@ -302,7 +304,7 @@ public class ProgressTracker {
 	 * @throws ParseEventError If an error occurs while parsing the event (invalid skill, etc)
 	 */
 	private OSBuddyEvent parseEvent(String displayName, File file) throws ParseEventError {
-		String screenshotName = file.getName();
+		String screenshotName = file.getName().substring(0, file.getName().lastIndexOf('.'));
 
 		BufferedImage screenshot = null;
 
@@ -325,6 +327,8 @@ public class ProgressTracker {
 			if (!SKILLS.contains(skill)) {
 				throw new ParseEventError("Unknown skill " + skill);
 			}
+
+			logger.info("Level up");
 
 			return new LevelUpEvent(file, displayName, screenshot, skill, Integer.parseInt(level));
 		}
