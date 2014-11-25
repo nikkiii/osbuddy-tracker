@@ -52,6 +52,7 @@ public abstract class HttpRequest implements AutoCloseable {
 
 	/**
 	 * Construct a new HttpRequest from the specified url string
+	 *
 	 * @param url The URL
 	 */
 	public HttpRequest(String url) {
@@ -60,6 +61,7 @@ public abstract class HttpRequest implements AutoCloseable {
 
 	/**
 	 * Construct a new HttpRequest from the specified url string
+	 *
 	 * @param url The URL
 	 * @param rateLimit The bytes per second to limit output to
 	 */
@@ -70,6 +72,7 @@ public abstract class HttpRequest implements AutoCloseable {
 
 	/**
 	 * Construct a new HttpRequest from the specified url string
+	 *
 	 * @param url The URL
 	 */
 	public HttpRequest(URL url) {
@@ -78,6 +81,7 @@ public abstract class HttpRequest implements AutoCloseable {
 
 	/**
 	 * Construct a new HttpRequest from the specified url string
+	 *
 	 * @param url The URL
 	 * @param rateLimit The bytes per second to limit output to
 	 */
@@ -87,12 +91,14 @@ public abstract class HttpRequest implements AutoCloseable {
 
 	/**
 	 * Called automatically when using getConnection/getResponse* to execute the request
+	 *
 	 * @throws IOException If an error occurred while executing
 	 */
 	public abstract void execute() throws IOException;
 
 	/**
 	 * Opens the connection and sets the uesr agent, headers, etc.
+	 *
 	 * @throws IOException If an error occurred while opening the connection
 	 */
 	protected void openConnection() throws IOException {
@@ -128,6 +134,7 @@ public abstract class HttpRequest implements AutoCloseable {
 
 	/**
 	 * Get the connection object. This is useless except when called after execute or getResponse*
+	 *
 	 * @return The connection object
 	 */
 	public HttpURLConnection getConnection() {
@@ -137,6 +144,7 @@ public abstract class HttpRequest implements AutoCloseable {
 	/**
 	 * Get the HTTP response code.
 	 * This will execute the request if it hasn't already.
+	 *
 	 * @return The response code from the connection
 	 * @throws IOException If an error occurred while executing the request.
 	 */
@@ -147,6 +155,7 @@ public abstract class HttpRequest implements AutoCloseable {
 
 	/**
 	 * Gets the HTTP response as an InputStream
+	 *
 	 * @return The response stream
 	 */
 	public InputStream getResponseStream() throws IOException {
@@ -158,6 +167,7 @@ public abstract class HttpRequest implements AutoCloseable {
 	 * Get the HTTP response body as a string.
 	 * This will execute the request if it hasn't already.
 	 * TODO: Do we want to make sure there's no ending \n?
+	 *
 	 * @return The response string
 	 * @throws IOException If an error occurred while executing the request.
 	 */
@@ -179,6 +189,7 @@ public abstract class HttpRequest implements AutoCloseable {
 
 	/**
 	 * Gets a header from the response
+	 *
 	 * @param name The request header name
 	 * @return The request header
 	 */
@@ -189,6 +200,7 @@ public abstract class HttpRequest implements AutoCloseable {
 
 	/**
 	 * Checks if the connection has been initialized, and if not initialize and execute the request.
+	 *
 	 * @throws IOException If an error occurred while executing the request
 	 */
 	private void checkConnection() throws IOException {
@@ -199,6 +211,7 @@ public abstract class HttpRequest implements AutoCloseable {
 
 	/**
 	 * Add a request parameter (GET or POST) to the request
+	 *
 	 * @param key The parameter name
 	 * @param value The parameter value (Anything with toString, or MultipartFile for a request)
 	 */
@@ -208,6 +221,7 @@ public abstract class HttpRequest implements AutoCloseable {
 
 	/**
 	 * Set the parameter object
+	 *
 	 * @param parameters The new parameter object
 	 */
 	public void setParameters(RequestData parameters) {
@@ -216,6 +230,7 @@ public abstract class HttpRequest implements AutoCloseable {
 
 	/**
 	 * Add an http request header to this request
+	 *
 	 * @param name The request header name
 	 * @param value The request header value
 	 */
@@ -229,6 +244,7 @@ public abstract class HttpRequest implements AutoCloseable {
 
 	/**
 	 * Set the HTTP User agent
+	 *
 	 * @param userAgent The user agent
 	 */
 	public void setUserAgent(String userAgent) {

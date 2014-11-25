@@ -9,7 +9,6 @@ import java.util.Set;
  * A simple wrapper for a Map which contains a QueryString or POST data
  *
  * @author Nikki
- *
  */
 public class RequestData {
 
@@ -20,12 +19,10 @@ public class RequestData {
 
 	/**
 	 * Set a key to a value
-	 * @param key
-	 * 			The key to set
-	 * @param value
-	 * 			The value to set
-	 * @return
-	 * 			The RequestData instance for chaining
+	 *
+	 * @param key The key to set
+	 * @param value The value to set
+	 * @return The RequestData instance for chaining
 	 */
 	public RequestData put(String key, Object value) {
 		data.put(key, value);
@@ -34,10 +31,9 @@ public class RequestData {
 
 	/**
 	 * Get a value
-	 * @param key
-	 * 			The key to get the value for
-	 * @return
-	 * 			The value, or null if not found
+	 *
+	 * @param key The key to get the value for
+	 * @return The value, or null if not found
 	 */
 	public Object get(String key) {
 		return data.get(key);
@@ -54,10 +50,9 @@ public class RequestData {
 
 	/**
 	 * Transform this data into a URLEncoded string
-	 * @return
-	 * 			The URL Encoded String
-	 * @throws IOException
-	 * 			If an encoding error occurs
+	 *
+	 * @return The URL Encoded String
+	 * @throws IOException If an encoding error occurs
 	 */
 	public String toURLEncodedString() throws IOException {
 		return QueryString.implode(data);

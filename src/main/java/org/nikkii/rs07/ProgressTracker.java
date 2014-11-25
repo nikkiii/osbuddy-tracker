@@ -1,16 +1,11 @@
 package org.nikkii.rs07;
 
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.reflect.TypeToken;
 import org.nikkii.rs07.event.DuelVictoryEvent;
 import org.nikkii.rs07.event.LevelUpEvent;
 import org.nikkii.rs07.event.OSBuddyEvent;
 import org.nikkii.rs07.event.ParseEventError;
 import org.nikkii.rs07.event.TreasureTrailEvent;
-import org.nikkii.rs07.gallery.GalleryEntry;
-import org.nikkii.rs07.gallery.GalleryEntrySorter;
-import org.nikkii.rs07.gallery.GalleryJsonDeserializer;
 import org.nikkii.rs07.http.HttpPostRequest;
 import org.nikkii.rs07.http.HttpRequest;
 import org.nikkii.rs07.http.data.RequestData;
@@ -31,33 +26,26 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
-import java.nio.file.FileSystems;
-import java.nio.file.Path;
-import java.nio.file.WatchEvent;
-import java.nio.file.WatchKey;
-import java.nio.file.WatchService;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.ListIterator;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY;
-import static java.nio.file.StandardWatchEventKinds.OVERFLOW;
-
 /**
+ * A progress tracker which watches directories using java's nio watchservice.
+ *
  * @author Nikki
  */
-public class JsonProgressTracker {
+public class ProgressTracker {
 
-	private static final Logger logger = Logger.getLogger(JsonProgressTracker.class.getName());
+	private static final Logger logger = Logger.getLogger(ProgressTracker.class.getName());
 
 	public static void main(String[] args) throws IOException {
 		logger.info("Finding OSBuddy directory...");
@@ -70,18 +58,9 @@ public class JsonProgressTracker {
 			throw new IOException("Unable to find OSBuddy folder!");
 		}
 
-		File osbuddySub = new File(osbuddyRoot, "OSBuddy"), galleryFile1 = new File(osbuddyRoot, "gallery/data.json"), watchDir = galleryFile1.getParentFile();
+		File watchDir = new File(osbuddyRoot, "screenshots");
 
-		// Handle a weird case when using an old launcher, this has been fixed recently.
-		if (osbuddySub.exists()) {
-			File galleryFile2 = new File(osbuddySub, "gallery/data.json");
-
-			if (galleryFile2.exists() && galleryFile2.lastModified() > galleryFile1.lastModified()) {
-				watchDir = galleryFile2.getParentFile();
-			}
-		}
-
-		JsonProgressTracker tracker = new JsonProgressTracker();
+		ProgressTracker tracker = new ProgressTracker();
 
 		logger.info("Initializing tray icon...");
 		tracker.initializeTrayIcon();
@@ -89,12 +68,6 @@ public class JsonProgressTracker {
 		logger.info("Starting watch service...");
 		tracker.track(watchDir);
 	}
-
-	/**
-	 * The RegExp used to parse out the player's display name.
-	 * This can be either the windows or unix type with path separator.
-	 */
-	private static final Pattern DISPLAY_NAME_PATTERN = Pattern.compile("screenshots[\\\\|\\/](.*?)[\\\\|\\/](.*?).png");
 
 	/**
 	 * The level pattern.
@@ -126,9 +99,9 @@ public class JsonProgressTracker {
 	});
 
 	/**
-	 * The Gson deserializer with registered gallery deserializer.
+	 * The Gson instance.
 	 */
-	private final Gson gson;
+	private final Gson gson = new Gson();
 
 	/**
 	 * The AuthStore instance.
@@ -140,10 +113,8 @@ public class JsonProgressTracker {
 	 */
 	private final ProgressTrackerSettings settings;
 
-	/**
-	 * The time to use when checking for new entries.
-	 */
-	private long lastModified = System.currentTimeMillis();
+
+	private final ExecutorService watchService = Executors.newCachedThreadPool();
 
 	/**
 	 * The list of previously parsed events, to make sure we don't parse duplicates.
@@ -160,12 +131,10 @@ public class JsonProgressTracker {
 	 *
 	 * @throws IOException If an error occurs loading auth files or reading settings.
 	 */
-	public JsonProgressTracker() throws IOException {
-		try (Reader reader = new InputStreamReader(JsonProgressTracker.class.getResourceAsStream("/settings.json"))) {
-			this.settings = new Gson().fromJson(reader, ProgressTrackerSettings.class);
+	public ProgressTracker() throws IOException {
+		try (Reader reader = new InputStreamReader(ProgressTracker.class.getResourceAsStream("/settings.json"))) {
+			this.settings = gson.fromJson(reader, ProgressTrackerSettings.class);
 		}
-
-		gson = new GsonBuilder().registerTypeAdapter(GalleryEntry.class, new GalleryJsonDeserializer(settings.getDeserializerSettings())).create();
 
 		this.authStore = AuthStore.load(new File(System.getProperty("user.home"), ".rslog"));
 		new Thread(worker).start();
@@ -177,7 +146,7 @@ public class JsonProgressTracker {
 	 * @throws IOException If an error occurs reading the icon file.
 	 */
 	private void initializeTrayIcon() throws IOException {
-		Image image = ImageIO.read(JsonProgressTracker.class.getResourceAsStream("/icon.png"));
+		Image image = ImageIO.read(ProgressTracker.class.getResourceAsStream("/icon.png"));
 
 		Dimension size = SystemTray.getSystemTray().getTrayIconSize();
 
@@ -210,97 +179,53 @@ public class JsonProgressTracker {
 	}
 
 	/**
-	 * Track a directory.
+	 * Track a screenshot directory.
 	 *
 	 * @param dir The screenshot gallery directory.
 	 * @throws IOException If an error occurs while tracking file modifications.
 	 */
 	public void track(File dir) throws IOException {
-		Path path = dir.toPath();
+		logger.info("Watching " + dir.getAbsolutePath());
 
-		WatchService watcher = FileSystems.getDefault().newWatchService();
+		watchService.execute(new DirectoryCreationWatcher(this, dir));
 
-		path.register(watcher, ENTRY_MODIFY);
-
-		for (;;) {
-
-			// wait for key to be signaled
-			WatchKey key;
-			try {
-				key = watcher.take();
-			} catch (InterruptedException x) {
-				return;
+		for (File file : dir.listFiles()) {
+			if (!file.isDirectory()) {
+				continue;
 			}
 
-			for (WatchEvent<?> event : key.pollEvents()) {
-				WatchEvent.Kind<?> kind = event.kind();
-
-				if (kind == OVERFLOW) {
-					continue;
-				}
-
-				WatchEvent<Path> ev = (WatchEvent<Path>) event;
-				Path filename = ev.context();
-				String name = filename.toString();
-
-				if (!name.equals("data.json")) {
-					continue;
-				}
-
-				if (kind == ENTRY_MODIFY) {
-					try {
-						handleFileModification(new File(dir, name));
-					} catch (IOException ex) {
-						System.out.println("Unknown error while parsing new data.");
-					}
-				}
-			}
-
-			// Reset the key -- this step is critical if you want to
-			// receive further watch events.  If the key is no longer valid,
-			// the directory is inaccessible so exit the loop.
-			boolean valid = key.reset();
-			if (!valid) {
-				break;
-			}
+			trackScreenshots(file);
 		}
+	}
+
+	/**
+	 * Track a display name's screenshot directory.
+	 *
+	 * @param dir The subdirectory to track.
+	 */
+	public void trackScreenshots(File dir) {
+		logger.info("Tracking screenshots for " + dir.getName());
+
+		watchService.execute(new ScreenshotWatcher(this, dir));
 	}
 
 	/**
 	 * Parse the file after it was modified, checking new events.
 	 *
+	 * @param directory The directory in which the screenshot was created.
 	 * @param file The file which was modified.
 	 * @throws IOException if an error occurs while reading or deserializing the file.
 	 */
-	private void handleFileModification(File file) throws IOException {
-		long prevModified = lastModified;
-		lastModified = System.currentTimeMillis();
+	public void screenshotCreated(File directory, File file) throws IOException {
+		logger.info("Screenshot found for " + directory.getName() + ", file: " + file.getName());
 
-		try (Reader reader = new FileReader(file)) {
-			List<GalleryEntry> entries = gson.fromJson(reader, new TypeToken<List<GalleryEntry>>() {
-			}.getType());
-			Collections.sort(entries, new GalleryEntrySorter());
+		OSBuddyEvent evt = parseEvent(directory.getName(), file);
 
-			for (ListIterator<GalleryEntry> it$ = entries.listIterator(entries.size()); it$.hasPrevious(); ) {
-				GalleryEntry entry = it$.previous();
-
-				if (entry.getTime() <= prevModified) {
-					break;
-				}
-
-				OSBuddyEvent evt = parseEvent(entry);
-
-				if (evt == null) {
-					continue;
-				}
-
-				if (evt == null || parsedEvents.contains(evt.hashCode())) continue;
-
-				parsedEvents.add(evt.hashCode());
-
-				worker.queue(evt);
-			}
+		if (evt == null || parsedEvents.contains(evt.hashCode())) {
+			return;
 		}
+
+		parsedEvents.add(evt.hashCode());
 	}
 
 	/**
@@ -314,7 +239,7 @@ public class JsonProgressTracker {
 
 			data.put("type", evt.getType())
 				.put("displayName", evt.getDisplayName())
-				.put("time", evt.getEntry().getTime() / 1000L);
+				.put("time", System.currentTimeMillis() / 1000L);
 
 			if (authStore.hasAuth(evt.getDisplayName())) {
 				data.put("key", authStore.getAuth(evt.getDisplayName()));
@@ -330,19 +255,19 @@ public class JsonProgressTracker {
 
 				data.put("skill", levelUp.getSkill())
 					.put("level", levelUp.getLevel());
-				System.out.println("[" + evt.getDisplayName() + "] Skill Level - Skill : " + levelUp.getSkill() + ", Level: " + levelUp.getLevel());
+				logger.info("[" + evt.getDisplayName() + "] Skill Level - Skill : " + levelUp.getSkill() + ", Level: " + levelUp.getLevel());
 				break;
 			case TREASURE_TRAIL:
 				TreasureTrailEvent trail = (TreasureTrailEvent) evt;
 
 				data.put("difficulty", trail.getDifficulty());
-				System.out.println("[" + evt.getDisplayName() + "] Treasure Trail - Difficulty: " + trail.getDifficulty());
+				logger.info("[" + evt.getDisplayName() + "] Treasure Trail - Difficulty: " + trail.getDifficulty());
 				break;
 			case DUEL_VICTORY:
 				DuelVictoryEvent victory = (DuelVictoryEvent) evt;
 
 				data.put("opponent", victory.getOpponent());
-				System.out.println("[" + evt.getDisplayName() + "] Duel Victory - Opponent: " + victory.getOpponent());
+				logger.info("[" + evt.getDisplayName() + "] Duel Victory - Opponent: " + victory.getOpponent());
 				break;
 			}
 
@@ -353,14 +278,16 @@ public class JsonProgressTracker {
 
 				if (!body.equals("ok")) {
 					body = body.trim();
-					System.out.println("[" + evt.getDisplayName() + "] Got auth token " + body);
+
+					logger.info("Got auth token " + body);
+
 					authStore.setAuth(evt.getDisplayName(), body);
 					authStore.save();
 				} else {
-					System.out.println("[" + evt.getDisplayName() + "] Update successfully pushed.");
+					logger.info("[" + evt.getDisplayName() + "] Update successfully pushed.");
 				}
 			}
-		} catch(IOException e) {
+		} catch (IOException e) {
 			System.out.println("[" + evt.getDisplayName() + "] An error occurred while pushing the update.");
 			e.printStackTrace();
 		}
@@ -369,32 +296,28 @@ public class JsonProgressTracker {
 	/**
 	 * Parse an osbuddy gallery entry into an event.
 	 *
-	 * @param entry The gallery entry.
+	 * @param displayName The character display name.
+	 * @param file The screenshot file.
 	 * @return The parsed event, or null if unable to find one.
 	 * @throws ParseEventError If an error occurs while parsing the event (invalid skill, etc)
 	 */
-	private OSBuddyEvent parseEvent(GalleryEntry entry) throws ParseEventError {
-		Matcher m = DISPLAY_NAME_PATTERN.matcher(entry.getAbsolutePath());
-
-		if (!m.find()) {
-			return null;
-		}
-
-		String displayName = m.group(1), screenshotName = m.group(2);
+	private OSBuddyEvent parseEvent(String displayName, File file) throws ParseEventError {
+		String screenshotName = file.getName();
 
 		BufferedImage screenshot = null;
 
 		// Attempt to load the screenshot
 
 		try {
-			screenshot = entry.getScreenshot();
+			screenshot = ImageIO.read(file);
 		} catch (Exception e) {
 			// Nothing to it.
+			e.printStackTrace();
 		}
 
 		// Level up
 
-		m = LEVEL_PATTERN.matcher(screenshotName);
+		Matcher m = LEVEL_PATTERN.matcher(screenshotName);
 
 		if (m.find()) {
 			String skill = m.group(1), level = m.group(2);
@@ -403,7 +326,7 @@ public class JsonProgressTracker {
 				throw new ParseEventError("Unknown skill " + skill);
 			}
 
-			return new LevelUpEvent(entry, displayName, screenshot, skill, Integer.parseInt(level));
+			return new LevelUpEvent(file, displayName, screenshot, skill, Integer.parseInt(level));
 		}
 
 		// Treasure Trail
@@ -415,7 +338,7 @@ public class JsonProgressTracker {
 
 			String timestamp = m.group(2);
 
-			return new TreasureTrailEvent(entry, displayName, screenshot, difficulty, timestamp);
+			return new TreasureTrailEvent(file, displayName, screenshot, difficulty, timestamp);
 		}
 
 		// Duel victory
@@ -424,8 +347,9 @@ public class JsonProgressTracker {
 
 		if (m.find()) {
 			String opponent = m.group(1);
+			String timestamp = m.group(2);
 
-			return new DuelVictoryEvent(entry, displayName, screenshot, opponent);
+			return new DuelVictoryEvent(entry, displayName, screenshot, opponent, timestamp);
 		}*/
 
 		return null;

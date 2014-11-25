@@ -21,12 +21,12 @@ public class HttpMultipartPostRequest extends HttpRequest {
 	/**
 	 * Standard CLRF line ending
 	 */
-	private static final char[] CLRF = new char[] { '\r', '\n' };
+	private static final char[] CLRF = new char[]{'\r', '\n'};
 
 	/**
 	 * Double CLRF line ending
 	 */
-	private static final char[] DOUBLE_CLRF = new char[] { '\r', '\n', '\r', '\n' };
+	private static final char[] DOUBLE_CLRF = new char[]{'\r', '\n', '\r', '\n'};
 
 	/**
 	 * Boundary start token
@@ -35,6 +35,7 @@ public class HttpMultipartPostRequest extends HttpRequest {
 
 	/**
 	 * Construct a new Multipart POST request
+	 *
 	 * @param url The URL string
 	 */
 	public HttpMultipartPostRequest(String url) {

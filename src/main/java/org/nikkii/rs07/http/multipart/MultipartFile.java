@@ -24,6 +24,7 @@ public class MultipartFile {
 
 	/**
 	 * Construct a new file object from an existing File instance
+	 *
 	 * @param file The file to use
 	 * @throws IOException If an error occurred opening the file for read
 	 */
@@ -34,6 +35,7 @@ public class MultipartFile {
 	/**
 	 * Construct a new file object from a name and InputStream
 	 * Note: The InputStream will be automatically closed after the upload is done.
+	 *
 	 * @param name The file name
 	 * @param inputStream The InputStream containing the file data
 	 */
@@ -44,6 +46,7 @@ public class MultipartFile {
 
 	/**
 	 * Get the file name
+	 *
 	 * @return The file's name
 	 */
 	public String getName() {
@@ -52,6 +55,7 @@ public class MultipartFile {
 
 	/**
 	 * Get the data InputStream
+	 *
 	 * @return The InputStream
 	 */
 	public InputStream getInputStream() {

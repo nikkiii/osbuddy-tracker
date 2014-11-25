@@ -17,11 +17,6 @@ public class ProgressTrackerSettings {
 	private String imageUrl;
 
 	/**
-	 * The deserializer settings.
-	 */
-	private DeserializerSettings deserializerSettings;
-
-	/**
 	 * Get the update service url.
 	 *
 	 * @return The update url.
@@ -37,14 +32,5 @@ public class ProgressTrackerSettings {
 	 */
 	public String getImageUrl() {
 		return imageUrl;
-	}
-
-	/**
-	 * Get the Deserializer Settings.
-	 *
-	 * @return The deserializer settings.
-	 */
-	public DeserializerSettings getDeserializerSettings() {
-		return deserializerSettings;
 	}
 }

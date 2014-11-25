@@ -1,9 +1,9 @@
 package org.nikkii.rs07.event;
 
 import org.nikkii.rs07.ProgressType;
-import org.nikkii.rs07.gallery.GalleryEntry;
 
 import java.awt.image.BufferedImage;
+import java.io.File;
 import java.util.Objects;
 
 /**
@@ -11,10 +11,12 @@ import java.util.Objects;
  */
 public class DuelVictoryEvent extends OSBuddyEvent {
 	private final String opponent;
+	private final String timestamp;
 
-	public DuelVictoryEvent(GalleryEntry entry, String displayName, BufferedImage screenshot, String opponent) {
-		super(entry, ProgressType.DUEL_VICTORY, displayName, screenshot);
+	public DuelVictoryEvent(File screenshotFile, String displayName, BufferedImage screenshot, String opponent, String timestamp) {
+		super(screenshotFile, ProgressType.DUEL_VICTORY, displayName, screenshot);
 		this.opponent = opponent;
+		this.timestamp = timestamp;
 	}
 
 	public String getOpponent() {
@@ -23,6 +25,6 @@ public class DuelVictoryEvent extends OSBuddyEvent {
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(entry.getTime(), type, displayName, entry, opponent);
+		return Objects.hash(type, displayName, opponent, timestamp);
 	}
 }

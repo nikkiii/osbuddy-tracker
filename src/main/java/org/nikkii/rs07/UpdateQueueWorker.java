@@ -2,6 +2,7 @@ package org.nikkii.rs07;
 
 import org.nikkii.rs07.event.OSBuddyEvent;
 
+import javax.imageio.ImageIO;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Queue;
@@ -15,14 +16,14 @@ public class UpdateQueueWorker implements Runnable {
 	/**
 	 * The tracker object.
 	 */
-	private final JsonProgressTracker tracker;
+	private final ProgressTracker tracker;
 
 	/**
 	 * The Linked Queue for events.
 	 */
 	private final Queue<OSBuddyEvent> queue = new LinkedList<>();
 
-	public UpdateQueueWorker(JsonProgressTracker tracker) {
+	public UpdateQueueWorker(ProgressTracker tracker) {
 		this.tracker = tracker;
 	}
 
@@ -32,7 +33,7 @@ public class UpdateQueueWorker implements Runnable {
 	 * @param event The event to submit.
 	 */
 	public void queue(OSBuddyEvent event) {
-		synchronized(queue) {
+		synchronized (queue) {
 			queue.add(event);
 		}
 	}
@@ -40,17 +41,17 @@ public class UpdateQueueWorker implements Runnable {
 	@Override
 	public void run() {
 		while (true) {
-			synchronized(queue) {
+			synchronized (queue) {
 				if (!queue.isEmpty()) {
-					for (Iterator<OSBuddyEvent> it$ = queue.iterator(); it$.hasNext();) {
+					for (Iterator<OSBuddyEvent> it$ = queue.iterator(); it$.hasNext(); ) {
 						OSBuddyEvent event = it$.next();
 
 						if (!event.hasScreenshot()) {
 							try {
-								event.setScreenshot(event.getEntry().getScreenshot());
+								event.setScreenshot(ImageIO.read(event.getScreenshotFile()));
 							} catch (Exception e) {
 								// Unable to load, let it go and add again.
-								System.out.println("Unable to get screenshot from " + event.getEntry().getAbsolutePath());
+								System.out.println("Unable to get screenshot from " + event.getScreenshotFile());
 								e.printStackTrace();
 							}
 						}

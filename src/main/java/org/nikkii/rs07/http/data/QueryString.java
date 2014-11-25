@@ -14,11 +14,9 @@ public class QueryString {
 	/**
 	 * Implode a map of key -> value pairs to a URL safe string
 	 *
-	 * @param values
-	 *            The values to implode
+	 * @param values The values to implode
 	 * @return The imploded string
-	 * @throws IOException
-	 *             If an error occurred while encoding any values.
+	 * @throws IOException If an error occurred while encoding any values.
 	 */
 	public static String implode(Map<String, Object> values) throws IOException {
 		StringBuilder builder = new StringBuilder();
@@ -40,18 +38,17 @@ public class QueryString {
 
 	/**
 	 * Parse an http query string
-	 * @param string
-	 * 			The string to parse
-	 * @return
-	 * 			The parsed string in a map.
+	 *
+	 * @param string The string to parse
+	 * @return The parsed string in a map.
 	 */
 	public static RequestData parse(String string) {
 		RequestData values = new RequestData();
 		String[] split = string.split("&");
 
-		for(String s : split) {
-			if(s.indexOf('=') != -1) {
-				values.put(s.substring(0, s.indexOf('=')), s.substring(s.indexOf('=')+1));
+		for (String s : split) {
+			if (s.indexOf('=') != -1) {
+				values.put(s.substring(0, s.indexOf('=')), s.substring(s.indexOf('=') + 1));
 			} else {
 				values.put(s, null);
 			}
