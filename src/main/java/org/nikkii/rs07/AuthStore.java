@@ -114,6 +114,10 @@ public class AuthStore {
 
 		AuthStore store = new AuthStore(dir);
 		for (File f : dir.listFiles()) {
+			if (!f.getName().endsWith(".txt")) {
+				continue;
+			}
+
 			String name = f.getName().substring(0, f.getName().lastIndexOf('.'));
 
 			try (BufferedReader reader = new BufferedReader(new FileReader(f))) {

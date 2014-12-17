@@ -11,9 +11,14 @@ import org.nikkii.rs07.http.HttpRequest;
 import org.nikkii.rs07.http.data.RequestData;
 import org.nikkii.rs07.http.multipart.HttpMultipartPostRequest;
 import org.nikkii.rs07.http.multipart.MultipartFile;
+import org.nikkii.rs07.util.DesktopEntryBuilder;
+import org.nikkii.rs07.util.Util;
+import org.nikkii.rs07.util.Util.OperatingSystem;
+import org.nikkii.rs07.util.WinRegistry;
 
 import javax.imageio.ImageIO;
 import java.awt.AWTException;
+import java.awt.CheckboxMenuItem;
 import java.awt.Dimension;
 import java.awt.Image;
 import java.awt.MenuItem;
@@ -22,13 +27,18 @@ import java.awt.SystemTray;
 import java.awt.TrayIcon;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.ItemEvent;
+import java.awt.event.ItemListener;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.io.Writer;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
@@ -47,6 +57,8 @@ public class ProgressTracker {
 
 	private static final Logger logger = Logger.getLogger(ProgressTracker.class.getName());
 
+	private static final String APPLICATION_NAME = "RSLog";
+
 	public static void main(String[] args) throws IOException {
 		logger.info("Finding OSBuddy directory...");
 
@@ -61,6 +73,9 @@ public class ProgressTracker {
 		File watchDir = new File(osbuddyRoot, "screenshots");
 
 		ProgressTracker tracker = new ProgressTracker();
+
+		logger.info("Checking startup...");
+		tracker.checkStartup();
 
 		logger.info("Initializing tray icon...");
 		tracker.initializeTrayIcon();
@@ -113,6 +128,11 @@ public class ProgressTracker {
 	 */
 	private final ProgressTrackerSettings settings;
 
+	/**
+	 * The progress tracker user settings.
+	 */
+	private final ProgressTrackerUserSettings userSettings;
+
 
 	private final ExecutorService watchService = Executors.newCachedThreadPool();
 
@@ -136,8 +156,34 @@ public class ProgressTracker {
 			this.settings = gson.fromJson(reader, ProgressTrackerSettings.class);
 		}
 
-		this.authStore = AuthStore.load(new File(System.getProperty("user.home"), ".rslog"));
+		File rslogDirectory = new File(System.getProperty("user.home"), ".rslog");
+		File rslogSettings = new File(rslogDirectory, "settings.json");
+
+		if (rslogSettings.exists()) {
+			try (Reader reader = new FileReader(rslogSettings)) {
+				this.userSettings = gson.fromJson(reader, ProgressTrackerUserSettings.class);
+			}
+		} else {
+			this.userSettings = new ProgressTrackerUserSettings();
+
+			saveUserSettings();
+		}
+
+		this.authStore = AuthStore.load(rslogDirectory);
 		new Thread(worker).start();
+	}
+
+	/**
+	 * Save the user settings to file.
+	 * @throws IOException If an error occurs while writing to the file.
+	 */
+	private void saveUserSettings() throws IOException {
+		File settingsDirectory = new File(System.getProperty("user.home"), ".rslog");
+
+		File settingsFile =  new File(settingsDirectory, "settings.json");
+		try (Writer writer = new FileWriter(settingsFile)) {
+			gson.toJson(userSettings, writer);
+		}
 	}
 
 	/**
@@ -152,11 +198,26 @@ public class ProgressTracker {
 
 		image = image.getScaledInstance(size.width, size.height, BufferedImage.SCALE_SMOOTH);
 
-		TrayIcon icon = new TrayIcon(image);
-
-		icon.setToolTip("RSLog Tracker");
-
 		PopupMenu menu = new PopupMenu();
+
+		final CheckboxMenuItem start = new CheckboxMenuItem("Start on system startup", userSettings.shouldStartOnStartup());
+
+		start.addItemListener(new ItemListener() {
+			@Override
+			public void itemStateChanged(ItemEvent e) {
+				userSettings.setStartOnStartup(start.getState());
+
+				try {
+					saveUserSettings();
+				} catch (IOException e1) {
+					e1.printStackTrace();
+				}
+
+				checkStartup();
+			}
+		});
+
+		menu.add(start);
 
 		MenuItem exit = new MenuItem("Exit");
 
@@ -169,11 +230,28 @@ public class ProgressTracker {
 
 		menu.add(exit);
 
-		icon.setPopupMenu(menu);
-
 		try {
-			SystemTray.getSystemTray().add(icon);
+			SystemTray.getSystemTray().add(new TrayIcon(image, "RSLog Tracker", menu));
 		} catch (AWTException e) {
+			e.printStackTrace();
+		}
+	}
+
+	/**
+	 * Re-checks the start on startup option.
+	 */
+	private void checkStartup() {
+		try {
+			File jarFile = Util.getJarFile(ProgressTracker.class);
+
+			logger.info("Launch location: " + jarFile.getAbsolutePath());
+
+			if (userSettings.shouldStartOnStartup()) {
+				verifyAutostart(jarFile, VerificationMode.INSERT);
+			} else {
+				verifyAutostart(jarFile, VerificationMode.REMOVE);
+			}
+		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
@@ -328,8 +406,6 @@ public class ProgressTracker {
 				throw new ParseEventError("Unknown skill " + skill);
 			}
 
-			logger.info("Level up");
-
 			return new LevelUpEvent(file, displayName, screenshot, skill, Integer.parseInt(level));
 		}
 
@@ -379,5 +455,60 @@ public class ProgressTracker {
 
 			return request.getResponseBody();
 		}
+	}
+
+	/**
+	 * If on windows or linux, verify that the registry entry is intact and pointing to the correct version.
+	 * @param file
+	 * 			The file to verify against
+	 * @param mode
+	 * 			The mode to use, REMOVE will remove the entry, VERIFY will update it, and INSERT will insert if it does not exist.
+	 */
+	public static void verifyAutostart(File file, VerificationMode mode) {
+		OperatingSystem system = Util.getPlatform();
+		if(system == OperatingSystem.WINDOWS) {
+			try {
+				String current = WinRegistry.readString(WinRegistry.HKEY_CURRENT_USER, WinRegistry.RUN_PATH, APPLICATION_NAME);
+				if(mode == VerificationMode.REMOVE) {
+					WinRegistry.deleteValue(WinRegistry.HKEY_CURRENT_USER, WinRegistry.RUN_PATH, APPLICATION_NAME);
+				} else if(mode == VerificationMode.INSERT && current == null || current != null && !current.equals(file.getAbsolutePath())) {
+					WinRegistry.writeStringValue(WinRegistry.HKEY_CURRENT_USER, WinRegistry.RUN_PATH, APPLICATION_NAME, file.getAbsolutePath());
+				}
+			} catch (Exception e) {
+				//Ignore it.
+			}
+		} else if(system == OperatingSystem.LINUX) {
+			File autostartDir = new File(System.getenv("XDG_CONFIG_HOME") != null ? System.getenv("XDG_CONFIG_HOME") : System.getProperty("user.home") + "/.config/autostart");
+			if(autostartDir.exists()) {
+				File autostart = new File(autostartDir, APPLICATION_NAME.toLowerCase() + ".desktop");
+
+				if(mode == VerificationMode.REMOVE) {
+					autostart.delete();
+				} else {
+					String contents = new DesktopEntryBuilder()
+						.addEntry("Type", "Application")
+						.addEntry("Categories", "Accessories")
+						.addEntry("Name", APPLICATION_NAME)
+						.addEntry("Comment", APPLICATION_NAME)
+						.addEntry("Terminal", false)
+						.addEntry("Exec", Util.getJavaExecutable().getAbsoluteFile() + " -jar \"" + file.getAbsolutePath() + "\"")
+						.build();
+
+					try {
+						FileWriter writer = new FileWriter(autostart);
+						try {
+							writer.write(contents);
+						} finally {
+							writer.close();
+						}
+					} catch(IOException e) {
+					}
+				}
+			}
+		}
+	}
+
+	public enum VerificationMode {
+		INSERT, VERIFY, REMOVE
 	}
 }
